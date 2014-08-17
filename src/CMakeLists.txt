@@ -8,12 +8,14 @@ main.cpp
 mainwindow.cpp
 gamescene.cpp
 block.cpp
+hud/timer.cpp
 )
 
 set(HDRS
 mainwindow.h
 gamescene.h
 block.h
+hud/timer.h
 )
 
 qt5_wrap_cpp(MOCS ${HDRS})
