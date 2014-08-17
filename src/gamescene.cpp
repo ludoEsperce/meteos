@@ -11,34 +11,47 @@
 
 static qint64 t0 = 0;
 
+const int GameScene::rowCount = 12;
+const int GameScene::columnCount = 9;
+
+static int randInt(int low, int high)
+{
+    // Random number between low and high
+    return qrand() % ((high + 1) - low) + low;
+}
+
 GameScene::GameScene(QObject* parent)
 : QGraphicsScene(parent), m_moveBlockActivated(false), m_movedBlock(0)
 {
     qsrand(QDateTime::currentMSecsSinceEpoch());
-    setSceneRect(0, 0, Block::defaultWidth*9, Block::defaultHeight*12);
-    for (int i = 9; i < 12; i++)
+    setSceneRect(0, 0, Block::defaultWidth*columnCount, Block::defaultHeight*rowCount);
+    for (int i = columnCount; i < rowCount; i++)
     {
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < columnCount; j++)
         {
-            int r = (qrand() % 4);
+//             int r = randInt(0, 3);
+            int r = qrand() % 4;
             Block* block = new Block(i, j, static_cast<Block::Color>(r));
             addBlock(block);
         }
     }
     
-    QTimer::singleShot(1000, this, SLOT(check()));
+//     QTimer::singleShot(1000, this, SLOT(check()));
+    check();
 }
 
 void GameScene::check()
 {
     foreach(Block* block, m_blocks)
     {
-        while (checkHorizontalAlignedBlock(block) || checkVerticalAlignedBlock(block))
+        while (!horizontalAlignedBlock(block).isEmpty() || checkVerticalAlignedBlock(block))
             block->nextColor();
     }
     
     t0 = QDateTime::currentMSecsSinceEpoch();
-    startTimer(17);
+//     m_blocks.first()->setState(Block::MoveUp);
+//     startTimer(17);
+    
 }
 
 void GameScene::addBlock(Block* block)
@@ -49,6 +62,25 @@ void GameScene::addBlock(Block* block)
     m_blocks << block;
     addItem(block);
     
+}
+
+void GameScene::spawnBlock()
+{
+    int c = qrand() % columnCount;
+    int r = qrand() % 4;
+    Block* block = new Block(0, c, static_cast<Block::Color>(r));
+    addBlock(block);
+    
+    block->setState(Block::MoveDown);
+    
+//     int r = 0;
+//     for (; r < rowCount; r++)
+//     {
+//         if (blockAt(r, c))
+//             break;
+//     }
+//     
+//     block->setCell(r, c);
 }
 
 Block* GameScene::blockAt(int row, int column)
@@ -105,16 +137,23 @@ void GameScene::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
         if (row != m_movedBlock->row())
         {
             Block* oldBlock = blockAt(row, m_movedBlock->column());
+            if (!oldBlock)
+                return;
             qDebug() << "new pos: " << row << " " << m_movedBlock->column();
             qDebug() << "old pos: " << m_movedBlock->row() << " " << m_movedBlock->column();
             oldBlock->setCell(m_movedBlock->row(), m_movedBlock->column());
             m_movedBlock->setCell(row, m_movedBlock->column());
             int count = 0;
-            if (checkHorizontalAlignedBlock(m_movedBlock, &count))
-                qDebug() << "H Aligned with moved block " << count;
+            QList<Block*> items;
+            if (!(items = horizontalAlignedBlock(m_movedBlock)).isEmpty())
+                qDebug() << "H Aligned with moved block " << items.size();
+            buildGroup(items);
                 
-            if (checkHorizontalAlignedBlock(oldBlock, &count))
-                qDebug() << "H Aligned with old block " << count;
+            if (!(items = horizontalAlignedBlock(oldBlock)).isEmpty())
+                qDebug() << "H Aligned with old block " << items.size();
+            
+            
+            // Je recherche les block du dessus et les ajoute au groupe
             
             if (checkVerticalAlignedBlock(m_movedBlock, &count))
                 qDebug() << "V Aligned with moved block " << count;
@@ -126,14 +165,16 @@ void GameScene::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
     QGraphicsScene::mouseMoveEvent(event);
 }
 
-bool GameScene::checkHorizontalAlignedBlock(Block* block, int* count)
+QList<Block*> GameScene::horizontalAlignedBlock(Block* block)
 {
     int c = 1;
+    QList<Block*> items;
+    items << block;
     for (int i = 1; i <= 2; i++)
     {
         Block* leftBlock = blockAt(block->row(), block->column()-i);
         if (leftBlock && leftBlock->color() == block->color())
-            c++;
+            items << leftBlock;
         else
             break;
     }
@@ -142,16 +183,12 @@ bool GameScene::checkHorizontalAlignedBlock(Block* block, int* count)
     {
         Block* rightBlock = blockAt(block->row(), block->column()+i);
         if (rightBlock && rightBlock->color() == block->color())
-            c++;
+            items << rightBlock;
         else
             break;
     }
-    
-    if (count)
-        *count = c;
-    if (c >= 3)
-        return true;
-    return false;
+
+    return (items.size() >= 3) ? items : QList<Block*>();
 }
 
 bool GameScene::checkVerticalAlignedBlock(Block* block, int* count)
@@ -183,20 +220,72 @@ bool GameScene::checkVerticalAlignedBlock(Block* block, int* count)
     
     if (count)
         *count = c;
-    if (c >= 3)
-        return true;
-    return false;
+
+    return (c >= 3);
 }
 
-void GameScene::timerEvent(QTimerEvent* event)
+QGraphicsItemGroup* GameScene::buildGroup(const QList< Block* >& blocks)
 {
-    qint64 t = QDateTime::currentMSecsSinceEpoch();
-    qint64 dt = t - t0;
-    t0 = t;
+//     QGraphicsItemGroup* group = new QGraphicsItemGroup;
+    foreach(Block* b, blocks)
+    {
+        int row = b->row();
+        //group->addToGroup(b);
+        b->setState(Block::MoveUp);
+        while(row > 0)
+        {
+            Block* blockOnTop = blockAt(row, b->column());
+            if (blockOnTop && blockOnTop->state() == Block::NoMove)
+            {
+                //group->addToGroup(blockOnTop);
+                blockOnTop->setState(Block::MoveUp);
+            }
+            row--;
+        }
+    }
+}
+
+// void GameScene::timerEvent(QTimerEvent* event)
+// {
+//     advance();
+//     
+// //     qint64 t = QDateTime::currentMSecsSinceEpoch();
+// //     qint64 dt = t - t0;
+// //     t0 = t;
+// //     
+// // //     qDebug() << "dt:" << dt;
+// //     
+// //     m_blocks.first()->update(dt);
+//     
+//     QObject::timerEvent(event);
+// }
+
+void GameScene::next()
+{
+    advance();
     
-//     qDebug() << "dt:" << dt;
-    
-    m_blocks.first()->update(dt);
-    
-    QObject::timerEvent(event);
+    foreach(Block* b, m_blocks)
+    {
+        if (b->state() == Block::MoveDown)
+        {
+            QList<QGraphicsItem*> items = b->collidingItems(Qt::IntersectsItemBoundingRect);
+            if (!items.isEmpty())
+            {
+                b->setState(((Block*)items.first())->state());
+                qreal y = -1;
+                foreach(QGraphicsItem* item, items)
+                {
+                    Block* block = (Block*) item;
+                    if (b->column() == block->column())
+                        y = block->y() - Block::defaultHeight;
+                }
+                if (y != -1)
+                    b->setPos(b->column()*Block::defaultWidth, y);
+            } else if(b->y() > (rowCount-1)*Block::defaultHeight){
+                b->setCell(rowCount-1, b->column());
+                b->setState(Block::NoMove);
+            }
+        }
+        
+    }
 }

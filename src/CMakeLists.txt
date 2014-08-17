@@ -4,6 +4,7 @@ set(target_name "meteos")
 include_directories(${QT_INCLUDES})
 
 set(SRCS
+engine.cpp
 main.cpp
 mainwindow.cpp
 gamescene.cpp
@@ -12,6 +13,7 @@ hud/timer.cpp
 )
 
 set(HDRS
+engine.h
 mainwindow.h
 gamescene.h
 block.h

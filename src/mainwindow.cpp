@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget* parent)
 : QMainWindow(parent)
 {
     m_view = new QGraphicsView(this);
+    m_engine = new Engine(this);
     QWidget* centralWidget = new QWidget();
 
     // dans le layout mettre view et HUD
@@ -29,7 +30,9 @@ MainWindow::MainWindow(QWidget* parent)
 
     Timer* timer = new Timer(0, 10000); // 10 secondes
     connect(button1, SIGNAL(clicked()), timer, SLOT(start()));
+    connect(button1, SIGNAL(clicked()), m_engine, SLOT(play()));
     connect(button2, SIGNAL(clicked()), timer, SLOT(stop()));
+    connect(button2, SIGNAL(clicked()), m_engine, SLOT(stop()));
     //connect(timer, SIGNAL(timeIsOut(QString)), label, SLOT(setText(QString)));
 
     // left layout
@@ -54,4 +57,6 @@ MainWindow::MainWindow(QWidget* parent)
     m_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+    connect(m_engine, SIGNAL(timeout()), scene, SLOT(next()));
+    connect(m_engine, SIGNAL(spawnTimeout()), scene, SLOT(spawnBlock()));
 }

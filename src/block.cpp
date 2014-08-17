@@ -32,6 +32,7 @@ Block::Block(int row, int column, Block::Color color, QGraphicsItem* parent)
 , m_row(row)
 , m_column(column)
 , m_color(color)
+, m_state(NoMove)
 {
     init();
     updateColor();
@@ -43,12 +44,13 @@ void Block::init()
     setAcceptHoverEvents(true);
     setBrush(QBrush(Qt::red));
     setPen(QPen(Qt::black, 2));
+//     setPen(Qt::NoPen);
     setRect(0, 0, defaultWidth, defaultHeight);
     setCell(m_row, m_column);
     static int n = 0;
     m_n = ++n;
     m_acceleration = 0.2;
-    m_speed = 0;
+    m_speed = 10;
     m_maxSpeed = 500;
     m_weight = 1;
 }
@@ -207,4 +209,25 @@ void Block::update(qint64 dt)
         
         moveBy(0, dy);
     }
+}
+
+void Block::advance(int phase)
+{
+    if (phase == 1 && m_state != NoMove)
+        moveBy(0, m_state == MoveDown ? m_speed : -m_speed);
+}
+
+bool Block::collidesWithItem(const QGraphicsItem* other, Qt::ItemSelectionMode mode) const
+{
+    if (mode != Qt::IntersectsItemBoundingRect)
+        return QGraphicsItem::collidesWithItem(other, mode);
+    
+    qDebug() << this->rect();
+    const Block* bo = qgraphicsitem_cast<const Block*>(other);
+    if (!bo)
+        return false;
+    
+    QRectF r1(pos(), rect().size());
+    QRectF r2(other->pos(), bo->rect().size());
+    return (r1.intersects(r2));
 }

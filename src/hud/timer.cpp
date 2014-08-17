@@ -13,7 +13,7 @@ Timer::Timer(int startValue, int endValue) {
 }
 
 void Timer::update(int frame) {
-    qDebug() << "...-> " << frame;
+//     qDebug() << "...-> " << frame;
     m_currentValue = frame;
     m_lcdNumber->display(frame);
 }
